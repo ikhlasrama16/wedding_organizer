@@ -38,7 +38,28 @@ class Order(models.Model):
     sudah_kembali = fields.Boolean(string='Sudah Dikembalikan', default=False)
     def kembali_barang(self):
         pass
+    
 
+    def invoice(self):
+        invoices = self.env['account.move'].create({
+            'move_type': 'out_invoice',  
+            'partner_id': self.pemesan,
+            'invoice_date': self.tanggal_pesan,
+            'date': fields.Datetime.now(),
+            'invoice_line_ids': [(0, 0, {
+                'product_id': 0,
+                'name' :'xxx' ,
+                'quantity': 1,
+                'name': 'product test 1',
+                'discount': 0,
+                'price_unit': self.total,
+                'price_subtotal': self.total,
+            })]            
+        })
+        self.sudah_kembali=True
+        return invoices 
+
+        
 class OrderPanggungDetail(models.Model):
     _name = 'wedding.orderpanggungdetail'
     _description = 'New Description'
@@ -90,12 +111,11 @@ class OrderKursiTamuDetail(models.Model):
     
     qty = fields.Integer(string='Quantity')
     
-    @api.constrains('qty')
-    def _check_stok(self):
+    @api.onchange('qty')
+    def onchange_qty(self):
         for record in self:
-            bahan = self.env['wedding.kursitamu'].search([('stok', '<',record.qty),('id', '=',record.id)])
-            if bahan:
-                raise ValidationError("Stok kursi yang dipilih tidak cukup")
+            if record.qty > record.kursitamu_id.stok:
+                raise ValidationError("Stok kursi tidak cukup")
     
     harga = fields.Integer(compute='_compute_harga', string='Harga')
     
